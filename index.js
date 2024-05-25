@@ -2,8 +2,8 @@
 
 require("dotenv").config();
 const express = require("express");
-const connection = require("./config/dbConnect");
-const userRoutes = require("./routes/userRoute");
+const sequelize = require("./config/dbConnect");
+const authRouter = require("./routes/authRoute");
 const { notFound, errorHandler } = require("./middlewares/errorHandler");
 
 const app = express();
@@ -14,17 +14,19 @@ require("./middlewares/bodyParser")(app);
 
 // Import and use routes
 
-app.use("api/users", userRoutes);
+app.use("/api/user", authRouter);
 
 app.use(notFound);
 app.use(errorHandler);
 
 // Define a simple route
-app.get("/", (req, res) => {
-  res.send("Hello, world!");
-});
+// app.get("/", (req, res) => {
+//   res.send("Hello, world!");
+// });
 
-// Start the Express server
-app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
+// Sync database and start the server
+sequelize.sync().then(() => {
+  app.listen(port, () => {
+    console.log(`Server is running on port ${port}`);
+  });
 });
