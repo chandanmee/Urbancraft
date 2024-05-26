@@ -10,10 +10,22 @@ const { response } = require("express");
 const { reset } = require("nodemon");
 const { validateMySQLId } = require("../utils/validateMySQLId");
 const sendEmail = require("./emailCtrl");
+const {
+  createUserSchema,
+  loginUserSchema,
+  updateUserSchema,
+  updatePasswordSchema,
+} = require("../utils/validationSchemas");
 
 //create a user
-const createUser = async (req, res) => {
+const createUser = asyncHandler(async (req, res) => {
   try {
+    // Validate the request body against the createUserSchema
+    const { error } = createUserSchema.validate(req.body);
+    if (error) {
+      return res.status(400).json({ message: error.details[0].message });
+    }
+
     const { email } = req.body;
 
     // Check if a user with the given email already exists
@@ -25,7 +37,7 @@ const createUser = async (req, res) => {
       res.json(newUser);
     } else {
       // User already exists, throw an error
-      throw new Error("User already exists");
+      return res.status(400).json({ message: "User already exists" });
     }
   } catch (error) {
     console.error("Error creating user:", error);
@@ -33,11 +45,17 @@ const createUser = async (req, res) => {
       .status(500)
       .json({ message: "Error creating user", error: error.message });
   }
-};
+});
 
 //login a user
 const loginUser = asyncHandler(async (req, res) => {
   try {
+    // Validate the request body against the loginUserSchema
+    const { error } = loginUserSchema.validate(req.body);
+    if (error) {
+      return res.status(400).json({ message: error.details[0].message });
+    }
+
     const { email, password } = req.body;
 
     // Check if a user with the given email exists
@@ -191,17 +209,32 @@ const unblockUser = asyncHandler(async (req, res) => {
 });
 
 //update password
+// Update Password
 const updatePassword = asyncHandler(async (req, res) => {
   try {
     const { id } = req.user;
     validateMySQLId(id);
+
+    const { error } = updatePasswordSchema.validate(req.body);
+    if (error) {
+      return res.status(400).json({ message: error.details[0].message });
+    }
+
+    const { existingPassword, newPassword } = req.body;
 
     const user = await User.findByPk(id);
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    user.password = req.body.password;
+    // Verify existing password
+    const isPasswordValid = await user.isPasswordMatched(existingPassword);
+    if (!isPasswordValid) {
+      return res.status(401).json({ message: "Invalid existing password" });
+    }
+
+    // Update password
+    user.password = newPassword;
     await user.save();
 
     res.json({ message: "Password updated successfully" });
@@ -212,6 +245,7 @@ const updatePassword = asyncHandler(async (req, res) => {
       .json({ message: "Failed to update password", error: error.message });
   }
 });
+
 
 //generate password reset token
 const forgotPasswordToken = asyncHandler(async (req, res) => {
@@ -303,17 +337,26 @@ const updateauser = asyncHandler(async (req, res) => {
   const { mobile } = req.body;
   validateMySQLId(id);
 
-  try {
-    // Check if the mobile number already exists for another user
-    const existingUserWithMobile = await User.findOne({ where: { mobile } });
-    if (existingUserWithMobile && existingUserWithMobile.id !== id) {
-      return res.status(400).json({ message: "Mobile number already in use" });
-    }
+  // Validate the request body against the updateUserSchema
+  const { error } = updateUserSchema.validate(req.body);
+  if (error) {
+    return res.status(400).json({ message: error.details[0].message });
+  }
 
+  try {
     const user = await User.findByPk(id);
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });
+    }
+
+    if (mobile && mobile !== user.mobile) {
+      const existingUserWithMobile = await User.findOne({ where: { mobile } });
+      if (existingUserWithMobile) {
+        return res
+          .status(400)
+          .json({ message: "Mobile number already in use" });
+      }
     }
 
     const [numOfAffectedRows] = await User.update(
@@ -322,21 +365,20 @@ const updateauser = asyncHandler(async (req, res) => {
         lastname: req.body.lastname,
         mobile: req.body.mobile,
       },
-      {
-        where: { id },
-      }
+      { where: { id } }
     );
 
     if (numOfAffectedRows === 0) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // Fetch the updated user again to include the changes made by the update operation
     const updatedUser = await User.findByPk(id);
-
     res.json(updatedUser);
   } catch (error) {
-    throw new Error(error);
+    console.error("Error updating user:", error);
+    res
+      .status(500)
+      .json({ message: "Failed to update user", error: error.message });
   }
 });
 
