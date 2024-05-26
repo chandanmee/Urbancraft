@@ -5,9 +5,11 @@ const asyncHandler = require("express-async-handler");
 const generateRefreshToken = require("../config/refreshtoken");
 const crypto = require("crypto");
 const jwt = require("jsonwebtoken");
+const { Sequelize } = require("sequelize");
 const { response } = require("express");
 const { reset } = require("nodemon");
 const { validateMySQLId } = require("../utils/validateMySQLId");
+const sendEmail = require("./emailCtrl");
 
 //create a user
 const createUser = async (req, res) => {
@@ -131,6 +133,111 @@ const deleteauser = asyncHandler(async (req, res) => {
   }
 });
 
+//blocak a user
+const blockUser = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  validateMySQLId(id);
+  try {
+    const user = await User.findByPk(id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    user.isBlocked = true;
+    await user.save();
+    res.json({ message: "User blocked successfully" });
+  } catch (error) {
+    throw new Error(error);
+  }
+});
+
+//unblock a user
+const unblockUser = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  validateMySQLId(id);
+  try {
+    const user = await User.findByPk(id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    user.isBlocked = false;
+    await user.save();
+    res.json({ message: "User unblocked successfully" });
+  } catch (error) {
+    throw new Error(error);
+  }
+});
+
+//update password
+const updatePassword = asyncHandler(async (req, res) => {
+  const { id } = req.user;
+  validateMySQLId(id);
+  try {
+    const user = await User.findByPk(id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    user.password = req.body.password;
+    await user.save();
+    res.json({ message: "Password updated successfully" });
+  } catch (error) {
+    throw new Error(error);
+  }
+});
+
+//generate password reset token
+const forgotPasswordToken = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+  try {
+    const user = await User.findOne({ where: { email } });
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    const token = await user.createPasswordResetToken();
+    await user.save();
+    const resetURL = `Hi please follow this link to reset your password.(Valid till 10 min)<a href="http://localhost:5000/api/user/rest-password/${token}">Click here</a>`;
+    const data = {
+      to: email,
+      text: "hey User, Please click on the link to reset your password.",
+      subject: "Password Reset Link",
+      htm: resetURL,
+    };
+    sendEmail(data);
+    console.log(token);
+    res.json(token);
+  } catch (error) {
+    throw new Error(error);
+  }
+});
+
+//reset password
+const resetPassword = asyncHandler(async (req, res) => {
+  const { token } = req.params;
+  const { password } = req.body;
+  const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+  try {
+    const user = await User.findOne({
+      where: {
+        passwordResetToken: hashedToken,
+        passwordResetExpires: { [Sequelize.Op.gt]: Date.now() },
+      },
+    });
+    if (!user) {
+      return res
+        .status(404)
+        .json({ message: "User not found or token expired" });
+    }
+    user.password = password;
+    user.passwordResetToken = undefined;
+    user.passwordResetExpires = undefined;
+    await user.save({
+      fields: ["password", "passwordResetToken", "passwordResetExpires"],
+    });
+    res.json({ message: "Password reset successfully" });
+  } catch (error) {
+    res.status(500).json({ errMessage: error.message });
+  }
+});
+
 module.exports = {
   createUser,
   loginUser,
@@ -138,4 +245,9 @@ module.exports = {
   getauser,
   handleRefreshToken,
   deleteauser,
+  blockUser,
+  unblockUser,
+  updatePassword,
+  forgotPasswordToken,
+  resetPassword,
 };
