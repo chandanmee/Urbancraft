@@ -36,7 +36,7 @@ const createUser = async (req, res) => {
 };
 
 //login a user
-const loginUser = async (req, res) => {
+const loginUser = asyncHandler(async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -48,18 +48,30 @@ const loginUser = async (req, res) => {
       const token = generateToken(user.id);
       const refreshToken = generateRefreshToken(user.id);
 
-      res.json({ token, refreshToken });
+      user.refreshToken = refreshToken;
+      await user.save();
+
+      // Set the refresh token in an HTTP-only cookie
+      res.cookie("refreshToken", refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production", // Use secure cookies in production
+        sameSite: "None", // Adjust according to your needs, especially for cross-site requests
+        maxAge: 24 * 60 * 60 * 1000, // Example: 1 day
+      });
+
+      // Send the tokens to the client
+      res.json({ token });
     } else {
       // User does not exist or password does not match
-      throw new Error("Invalid email or password");
+      res.status(401).json({ message: "Invalid email or password" });
     }
   } catch (error) {
     console.error("Error logging in user:", error);
     res
-      .status(401)
-      .json({ message: "Invalid email or password", error: error.message });
+      .status(500)
+      .json({ message: "Error logging in user", error: error.message });
   }
-};
+});
 
 //get all users
 const getalluser = async (req, res) => {
@@ -79,20 +91,31 @@ const getalluser = async (req, res) => {
 };
 
 const handleRefreshToken = asyncHandler(async (req, res) => {
-  const cookie = req.cookies;
-  if (!cookie.refreshToken) throw new Error("Please Refresh Token in cookies.");
-  const refreshToken = cookie.refreshToken;
-  const user = await User.findOne({ refreshToken });
-  if (!user)
-    throw new Error("Invalid refresh token present in db or not matched");
+  const cookies = req.cookies;
+  console.log("Received cookies:", cookies); // Log cookies for debugging
+
+  if (!cookies || !cookies.refreshToken) {
+    return res.status(400).json({ message: "No Refresh Token in cookies" });
+  }
+
+  const refreshToken = cookies.refreshToken;
+  const user = await User.findOne({ where: { refreshToken } });
+
+  if (!user) {
+    return res
+      .status(403)
+      .json({ message: "Invalid refresh token present in DB or not matched" });
+  }
+
   jwt.verify(refreshToken, process.env.JWT_SECRET, (err, decoded) => {
     if (err || user.id !== decoded.id) {
-      throw new Error("there is something wrong with the refresh token");
+      return res
+        .status(403)
+        .json({ message: "There is something wrong with the refresh token" });
     }
-    const accesToken = generateToken(user._id);
-    res.json({
-      accesToken,
-    });
+
+    const accessToken = generateToken(user.id); // Make sure generateToken uses the correct user ID field
+    res.json({ accessToken });
   });
 });
 
@@ -169,18 +192,24 @@ const unblockUser = asyncHandler(async (req, res) => {
 
 //update password
 const updatePassword = asyncHandler(async (req, res) => {
-  const { id } = req.user;
-  validateMySQLId(id);
   try {
+    const { id } = req.user;
+    validateMySQLId(id);
+
     const user = await User.findByPk(id);
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
+
     user.password = req.body.password;
     await user.save();
+
     res.json({ message: "Password updated successfully" });
   } catch (error) {
-    throw new Error(error);
+    console.error("Error updating password:", error);
+    res
+      .status(500)
+      .json({ message: "Failed to update password", error: error.message });
   }
 });
 
@@ -203,7 +232,7 @@ const forgotPasswordToken = asyncHandler(async (req, res) => {
     };
     sendEmail(data);
     console.log(token);
-    res.json(token);
+    res.json({ message: "Token sent to email" });
   } catch (error) {
     throw new Error(error);
   }
@@ -238,6 +267,79 @@ const resetPassword = asyncHandler(async (req, res) => {
   }
 });
 
+//logout a user
+const logout = asyncHandler(async (req, res) => {
+  console.log("Logging out user"); // Log for debugging
+  try {
+    const cookie = req.cookies;
+    if (!cookie?.refreshToken) throw new Error("No Refresh Token in cookies.");
+
+    const refreshToken = cookie.refreshToken;
+    const user = await User.findOne({ where: { refreshToken } });
+    console.log("User found:", user); // Log user for debugging
+
+    if (!user) {
+      res.clearCookie("refreshToken", {
+        httpOnly: true,
+        secure: true,
+      });
+      return res.status(204).json({ message: "User logged out successfully" });
+    }
+
+    await User.update({ refreshToken: "" }, { where: { refreshToken } });
+    res.clearCookie("refreshToken", {
+      httpOnly: true,
+      secure: true,
+    });
+    res.status(204).json({ message: "User logged out successfully" });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to logout", error: error.message }); // Send an error response
+  }
+});
+
+//update a user
+const updateauser = asyncHandler(async (req, res) => {
+  const { id } = req.user;
+  const { mobile } = req.body;
+  validateMySQLId(id);
+
+  try {
+    // Check if the mobile number already exists for another user
+    const existingUserWithMobile = await User.findOne({ where: { mobile } });
+    if (existingUserWithMobile && existingUserWithMobile.id !== id) {
+      return res.status(400).json({ message: "Mobile number already in use" });
+    }
+
+    const user = await User.findByPk(id);
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const [numOfAffectedRows] = await User.update(
+      {
+        firstname: req.body.firstname,
+        lastname: req.body.lastname,
+        mobile: req.body.mobile,
+      },
+      {
+        where: { id },
+      }
+    );
+
+    if (numOfAffectedRows === 0) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Fetch the updated user again to include the changes made by the update operation
+    const updatedUser = await User.findByPk(id);
+
+    res.json(updatedUser);
+  } catch (error) {
+    throw new Error(error);
+  }
+});
+
 module.exports = {
   createUser,
   loginUser,
@@ -250,4 +352,6 @@ module.exports = {
   updatePassword,
   forgotPasswordToken,
   resetPassword,
+  logout,
+  updateauser,
 };
