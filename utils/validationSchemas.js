@@ -28,9 +28,49 @@ const updatePasswordSchema = Joi.object({
   newPassword: Joi.string().min(8).required(), // Adjust minimum password length as needed
 });
 
+const createProductSchema = Joi.object({
+  title: Joi.string().min(1).max(100).required(),
+  description: Joi.string().min(1).required(),
+  price: Joi.number().min(0).required(),
+  image: Joi.string().uri().required(),
+  category: Joi.string().min(1).required(),
+  brand: Joi.string().min(1).required(),
+  quantity: Joi.number().min(0).required(),
+  color: Joi.array().items(Joi.string().min(1)).optional(),
+  tags: Joi.array().items(Joi.string().min(1)).optional(),
+  ratings: Joi.array().items(Joi.number().min(1).max(5)).optional(),
+  totalrating: Joi.number().min(1).max(5).optional(),
+  sold: Joi.number().min(0).optional(),
+  // Add other fields as needed
+});
+
+//scehema for updating a product
+const updateProductSchema = Joi.object({
+  title: Joi.string().min(1).max(100).optional(),
+  description: Joi.string().min(1).optional(),
+  price: Joi.number().min(0).optional(),
+  image: Joi.string().uri().optional(),
+  category: Joi.string().min(1).optional(),
+  brand: Joi.string().min(1).optional(),
+  quantity: Joi.number().min(0).optional(),
+  color: Joi.array().items(Joi.string().min(1)).optional(),
+  tags: Joi.array().items(Joi.string().min(1)).optional(),
+  ratings: Joi.array().items(Joi.number().min(1).max(5)).optional(),
+  totalrating: Joi.number().min(1).max(5).optional(),
+  sold: Joi.number().min(0).optional(),
+  // Add other fields as needed
+});
+
+const createCategorySchema = Joi.object({
+  name: Joi.string().min(1).max(50).required(),
+});
+
 module.exports = {
   createUserSchema,
   loginUserSchema,
   updateUserSchema,
   updatePasswordSchema,
+  createProductSchema,
+  createCategorySchema,
+  updateProductSchema,
 };

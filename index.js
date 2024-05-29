@@ -3,6 +3,8 @@ const express = require("express");
 const cookieParser = require("cookie-parser");
 const sequelize = require("./config/dbConnect");
 const authRouter = require("./routes/authRoute");
+const productRouter = require("./routes/productRoute");
+const categoryRouter = require("./routes/categoryRoute");
 const { notFound, errorHandler } = require("./middlewares/errorHandler");
 
 const app = express();
@@ -15,6 +17,8 @@ app.use(cookieParser()); // This should be before the routes
 
 // Import and use routes
 app.use("/api/user", authRouter);
+app.use("/api/category", categoryRouter);
+app.use("/api/product", productRouter);
 
 // Error handling middlewares
 app.use(notFound);
