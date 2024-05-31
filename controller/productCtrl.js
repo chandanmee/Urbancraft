@@ -1,6 +1,8 @@
-const Product = require("../models/productModel");
-const Category = require("../models/categoryModel");
+// const Product = require("../models/productModel");
+// const Category = require("../models/categoryModel");
+// const User = require("../models/userModel");
 const asyncHandler = require("express-async-handler");
+const { User, Product, Wishlist, Category } = require("../models");
 const slugify = require("slugify");
 const {
   createProductSchema,
@@ -109,16 +111,29 @@ const updateaProduct = asyncHandler(async (req, res) => {
     return;
   }
   if (product) {
-    product.title = req.body.title;
-    product.slug = slugify(req.body.title, { lower: true });
-    product.description = req.body.description;
-    product.price = req.body.price;
-    product.category = req.body.category;
-    product.brand = req.body.brand;
-    product.quantity = req.body.quantity;
-    product.color = req.body.color;
-    product.tags = req.body.tags;
+    // Update fields only if they are provided in the request body
+    const fieldsToUpdate = [
+      "title",
+      "description",
+      "price",
+      "category",
+      "brand",
+      "quantity",
+      "color",
+      "tags",
+    ];
+    fieldsToUpdate.forEach((field) => {
+      if (req.body.hasOwnProperty(field)) {
+        product[field] = req.body[field];
+      }
+    });
 
+    // Update the slug if the title is provided and is a string
+    if (typeof req.body.title === "string") {
+      product.slug = slugify(req.body.title, { lower: true });
+    }
+
+    // Save the updated product
     const updatedProduct = await product.save();
     res.json({
       success: true,
@@ -148,10 +163,68 @@ const deleteaProduct = asyncHandler(async (req, res) => {
     });
   }
 });
+
+//wishlist a product by user
+const addToWishlist = async (req, res) => {
+  try {
+    const { user_id } = req.user;
+    const { productId } = req.body;
+    console.log(user_id);
+
+    // Check if the user exists
+    const user = await User.findOne({ where: { user_id: user_id } });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // Check if the product exists
+    const product = await Product.findByPk(productId);
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: "Product not found",
+      });
+    }
+
+    // Check if the product is already in the user's wishlist
+    const wishlistEntry = await Wishlist.findOne({
+      where: { userId: user.id, productId: product.id },
+    });
+    if (wishlistEntry) {
+      return res.status(400).json({
+        success: false,
+        message: "Product already in wishlist",
+      });
+    }
+
+    // Add product to user's wishlist
+    await Wishlist.create({ userId: user.id, productId: product.id });
+
+    // Send success response
+    return res.status(200).json({
+      success: true,
+      message: "Product added to wishlist",
+    });
+  } catch (error) {
+    // Handle unexpected errors
+    console.error("Error adding product to wishlist:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
+//remove from wishlist
+
 module.exports = {
   createProduct,
   getaProduct,
   getAllProducts,
   updateaProduct,
   deleteaProduct,
+  addToWishlist,
 };

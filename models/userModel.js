@@ -1,7 +1,5 @@
-// models/user.js
-
 const { DataTypes, Model } = require("sequelize");
-const sequelize = require("../config/dbConnect");
+const { sequelize } = require("../config/dbConnect");
 const bcrypt = require("bcrypt");
 const crypto = require("crypto");
 
@@ -16,7 +14,7 @@ class User extends Model {
       .createHash("sha256")
       .update(resettoken)
       .digest("hex");
-    this.passwordResetExpires = Date.now() + 30 * 60 * 1000; // 10 minutes
+    this.passwordResetExpires = Date.now() + 30 * 60 * 1000; // 30 minutes
     await this.save();
     return resettoken;
   }
@@ -26,7 +24,7 @@ User.init(
   {
     id: {
       type: DataTypes.UUID,
-      defaultValue: DataTypes.UUIDV4, // Generate UUID using Sequelize
+      defaultValue: DataTypes.UUIDV4,
       primaryKey: true,
       unique: true,
     },
@@ -70,10 +68,6 @@ User.init(
     address: {
       type: DataTypes.STRING,
     },
-    wishlist: {
-      type: DataTypes.JSON,
-      defaultValue: [],
-    },
     refreshToken: {
       type: DataTypes.STRING,
     },
@@ -99,17 +93,15 @@ User.init(
         }
       },
       beforeCreate: async (user, options) => {
-        // Generate custom user ID
         const generateCustomId = () => {
-          const randomBytes = crypto.randomBytes(12); // 12 bytes = 96 bits
-          const randomString = randomBytes.toString("base64url").slice(0, 16); // Convert to a base64 string and take the first 16 characters
+          const randomBytes = crypto.randomBytes(12);
+          const randomString = randomBytes.toString("base64url").slice(0, 16);
           const formattedString = randomString
             .replace(/(.{4})/g, "$1-")
-            .slice(0, 19); // Add hyphens after every 4 characters
+            .slice(0, 19);
           return `USR-${formattedString.toUpperCase()}`;
         };
 
-        // Ensure the ID is unique by checking the database
         let isUnique = false;
         while (!isUnique) {
           const newId = generateCustomId();

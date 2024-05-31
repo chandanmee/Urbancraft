@@ -22,4 +22,14 @@ sequelize
     console.error("Unable to connect to the database:", err);
   });
 
-module.exports = sequelize;
+// Sync models with the database
+async function syncDatabase() {
+  try {
+    await sequelize.sync({ alter: true });
+    console.log("Database synchronized successfully.");
+  } catch (error) {
+    console.error("Error synchronizing database:", error);
+  }
+}
+
+module.exports = { sequelize, syncDatabase };

@@ -1,5 +1,5 @@
-const { DataTypes, Model } = require("sequelize");
-const sequelize = require("../config/dbConnect");
+const { DataTypes } = require("sequelize");
+const { sequelize } = require("../config/dbConnect");
 const Category = require("./categoryModel");
 
 const Product = sequelize.define(
@@ -65,10 +65,9 @@ const Product = sequelize.define(
     },
     categoryId: {
       type: DataTypes.UUID,
-      defaultValue: DataTypes.UUIDV4,
       references: {
-        model: "Categories", // Name of the target model
-        key: "categoryId", // Key in the target model that this column references
+        model: Category, // Correct reference to the Category model
+        key: "categoryId",
       },
     },
   },
@@ -76,9 +75,6 @@ const Product = sequelize.define(
     timestamps: true,
   }
 );
-
-// Create the table if it doesn't exist
-Product.sync();
 
 Product.belongsTo(Category, { foreignKey: "categoryId" });
 Category.hasMany(Product, { foreignKey: "categoryId" });

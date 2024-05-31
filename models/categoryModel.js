@@ -1,5 +1,5 @@
 const { DataTypes } = require("sequelize");
-const sequelize = require("../config/dbConnect");
+const { sequelize } = require("../config/dbConnect");
 
 const Category = sequelize.define(
   "Category",
