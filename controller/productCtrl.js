@@ -219,6 +219,57 @@ const addToWishlist = async (req, res) => {
 };
 
 //remove from wishlist
+const removeFromWishlist = async (req, res) => {
+  try {
+    const { user_id } = req.user;
+    const { productId } = req.body;
+
+    // Check if the user exists
+    const user = await User.findOne({ where: { user_id: user_id } });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // Check if the product exists
+    const product = await Product.findByPk(productId);
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: "Product not found",
+      });
+    }
+
+    // Check if the product is in the user's wishlist
+    const wishlistEntry = await Wishlist.findOne({
+      where: { userId: user.id, productId: product.id },
+    });
+    if (!wishlistEntry) {
+      return res.status(404).json({
+        success: false,
+        message: "Product not in wishlist",
+      });
+    }
+
+    // Remove product from user's wishlist
+    await wishlistEntry.destroy();
+
+    // Send success response
+    return res.status(200).json({
+      success: true,
+      message: "Product removed from wishlist",
+    });
+  } catch (error) {
+    // Handle unexpected errors
+    console.error("Error removing product from wishlist:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
 
 module.exports = {
   createProduct,
@@ -227,4 +278,5 @@ module.exports = {
   updateaProduct,
   deleteaProduct,
   addToWishlist,
+  removeFromWishlist,
 };

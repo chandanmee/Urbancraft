@@ -5,7 +5,9 @@ const { sequelize } = require("./config/dbConnect");
 const authRouter = require("./routes/authRoute");
 const productRouter = require("./routes/productRoute");
 const categoryRouter = require("./routes/categoryRoute");
+const multer = require("multer");
 const { notFound, errorHandler } = require("./middlewares/errorHandler");
+const cors = require("cors"); 
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -14,6 +16,15 @@ const port = process.env.PORT || 5000;
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+
+// Configure multer for handling form-data
+const upload = multer();
+app.use(upload.any());
+
+
+// Enable CORS
+app.use(cors());
+
 // Import and use routes
 app.use("/api/user", authRouter);
 app.use("/api/category", categoryRouter);

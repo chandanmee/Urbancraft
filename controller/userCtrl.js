@@ -20,6 +20,7 @@ const {
 //create a user
 const createUser = asyncHandler(async (req, res) => {
   try {
+    console.log("Request body:", req.body); // Log the request body for debugging
     // Validate the request body against the createUserSchema
     const { error } = createUserSchema.validate(req.body);
     if (error) {
@@ -245,7 +246,6 @@ const updatePassword = asyncHandler(async (req, res) => {
       .json({ message: "Failed to update password", error: error.message });
   }
 });
-
 
 //generate password reset token
 const forgotPasswordToken = asyncHandler(async (req, res) => {
