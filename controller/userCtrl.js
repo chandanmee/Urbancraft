@@ -1,5 +1,6 @@
 const generateToken = require("../config/jwtToken");
 const User = require("../models/userModel");
+const Wishlist = require("../models/wishlistModel");
 const uniqid = require("uniqid");
 const asyncHandler = require("express-async-handler");
 const generateRefreshToken = require("../config/refreshtoken");
@@ -382,6 +383,40 @@ const updateauser = asyncHandler(async (req, res) => {
   }
 });
 
+//get users wishlists
+const getWishlists = asyncHandler(async (req, res) => {
+  const { user_id } = req.user;
+  console.log("test");
+  console.log(user_id, "found users wishlists");
+  try {
+    // Find the user
+    const user = await User.findOne({ where: { user_id: user_id } });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // Find all wishlist entries for the user
+    const wishlists = await Wishlist.findAll({
+      where: { userId: user.id },
+      include: [{ model: Product }],
+    });
+
+    return res.status(200).json({
+      success: true,
+      wishlists: wishlists,
+    });
+  } catch (error) {
+    console.error("Error fetching user's wishlist:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+});
+
 module.exports = {
   createUser,
   loginUser,
@@ -396,4 +431,5 @@ module.exports = {
   resetPassword,
   logout,
   updateauser,
+  getWishlists,
 };

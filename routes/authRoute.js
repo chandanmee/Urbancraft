@@ -17,6 +17,7 @@ const {
   resetPassword,
   logout,
   updateauser,
+  getWishlists,
 } = require("../controller/userCtrl");
 
 const { authMiddleware, isAdmin } = require("../middlewares/authMiddleware");
@@ -31,6 +32,7 @@ router.get("/refresh", handleRefreshToken);
 router.get("/logout", logout);
 router.get("/get-all", authMiddleware, isAdmin, getalluser);
 router.get("/:id", authMiddleware, isAdmin, getauser);
+router.get("/wishlists", authMiddleware, getWishlists);
 
 router.delete("/:id", authMiddleware, isAdmin, deleteauser);
 
