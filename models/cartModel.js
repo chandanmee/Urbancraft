@@ -1,42 +1,33 @@
+const { DataTypes } = require("sequelize");
 const { sequelize } = require("../config/dbConnect");
-const { DataTypes, Model } = require("sequelize");
+const User = require("./userModel");
+const Product = require("./productModel");
 
-class Cart extends Model {}
-
-Cart.init(
-  {
-    id: {
-      type: DataTypes.UUID,
-      defaultValue: DataTypes.UUIDV4,
-      primaryKey: true,
-      unique: true,
-    },
-    userId: {
-      type: DataTypes.UUID,
-      allowNull: false,
-      references: {
-        model: "Users", // Ensure the model name matches
-        key: "id",
-      },
-    },
-    productId: {
-      type: DataTypes.UUID,
-      allowNull: false,
-      references: {
-        model: "Products", // Ensure the model name matches
-        key: "id",
-      },
-    },
-    quantity: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-      defaultValue: 1,
+const Cart = sequelize.define("Cart", {
+  userId: {
+    type: DataTypes.CHAR(36),
+    references: {
+      model: User,
+      key: "id",
     },
   },
-  {
-    sequelize,
-    modelName: "Cart",
-  }
-);
+  productId: {
+    type: DataTypes.STRING(255),
+    references: {
+      model: Product,
+      key: "id",
+    },
+  },
+  quantity: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    defaultValue: 1,
+  },
+});
+
+Cart.belongsTo(Product, { foreignKey: "productId" });
+
+User.hasMany(Cart, { foreignKey: "userId" });
+Product.hasMany(Cart, { foreignKey: "productId" });
 
 module.exports = Cart;

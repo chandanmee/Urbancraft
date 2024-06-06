@@ -2,6 +2,8 @@ const generateToken = require("../config/jwtToken");
 const User = require("../models/userModel");
 const Wishlist = require("../models/wishlistModel");
 const uniqid = require("uniqid");
+const Cart = require("../models/cartModel");
+const Product = require("../models/productModel");
 const asyncHandler = require("express-async-handler");
 const generateRefreshToken = require("../config/refreshtoken");
 const crypto = require("crypto");
@@ -383,39 +385,58 @@ const updateauser = asyncHandler(async (req, res) => {
   }
 });
 
-//get users wishlists
+//get the wish list of users
 const getWishlists = asyncHandler(async (req, res) => {
-  const { user_id } = req.user;
-  console.log("test");
-  console.log(user_id, "found users wishlists");
+  const { id } = req.user;
+  validateMySQLId(id);
   try {
-    // Find the user
-    const user = await User.findOne({ where: { user_id: user_id } });
+    const user = await User.findByPk(id);
     if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found",
-      });
+      return res.status(404).json({ message: "User not found" });
     }
 
-    // Find all wishlist entries for the user
-    const wishlists = await Wishlist.findAll({
-      where: { userId: user.id },
+    const wishlists = await user.getProducts({
+      attributes: {
+        exclude: ["createdAt", "updatedAt"],
+      },
+    });
+
+    res.json(wishlists);
+  } catch (error) {
+    console.error("Error getting wishlists:", error);
+    res
+      .status(500)
+      .json({ message: "Error getting wishlists", error: error.message });
+  }
+});
+
+//get a users cart
+const getCart = asyncHandler(async (req, res) => {
+  const { id } = req.user;
+  validateMySQLId(id);
+  try {
+    const user = await User.findByPk(id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Fetch the cart items associated with the user
+    const cartItems = await Cart.findAll({
+      where: { userId: id },
+      attributes: { exclude: ["createdAt", "updatedAt"] },
       include: [{ model: Product }],
     });
 
-    return res.status(200).json({
-      success: true,
-      wishlists: wishlists,
-    });
+    res.json(cartItems);
   } catch (error) {
-    console.error("Error fetching user's wishlist:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error",
-    });
+    console.error("Error getting cart:", error);
+    res
+      .status(500)
+      .json({ message: "Error getting cart", error: error.message });
   }
 });
+
+module.exports = getCart;
 
 module.exports = {
   createUser,
@@ -432,4 +453,5 @@ module.exports = {
   logout,
   updateauser,
   getWishlists,
+  getCart,
 };

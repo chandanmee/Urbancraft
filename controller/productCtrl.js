@@ -273,7 +273,6 @@ const removeFromWishlist = async (req, res) => {
 };
 
 //add a product to cart
-
 const addToCart = async (req, res) => {
   const transaction = await sequelize.transaction();
   try {
@@ -346,7 +345,7 @@ const addToCart = async (req, res) => {
 
 // Remove a product from the cart
 const removeFromCart = asyncHandler(async (req, res) => {
-  const { user_id } = req.user;
+  const { user_id } = req.user.id;
   const { productId } = req.body;
   console.log(user_id, "found users wishlists");
   try {
