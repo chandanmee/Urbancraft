@@ -7,6 +7,7 @@ const Product = require("./productModel");
 const User = require("./userModel");
 const Wishlist = require("./wishlistModel");
 const Cart = require("./cartModel");
+const ProductImage = require("./productImageModel");
 
 // Set up associations
 User.belongsToMany(Product, { through: Wishlist, foreignKey: "userId" });
@@ -24,5 +25,6 @@ module.exports = {
   Product,
   Wishlist,
   Cart,
+  ProductImage,
   syncDatabase,
 };

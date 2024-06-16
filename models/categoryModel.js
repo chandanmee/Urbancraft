@@ -19,11 +19,9 @@ const Category = sequelize.define(
     },
   },
   {
+    tableName: "Categories", // Ensure table name is correctly referenced
     timestamps: true,
   }
 );
-
-// Create the table if it doesn't exist
-Category.sync();
 
 module.exports = Category;

@@ -29,18 +29,16 @@ const updatePasswordSchema = Joi.object({
 });
 
 const createProductSchema = Joi.object({
-  title: Joi.string().min(1).max(100).required(),
-  description: Joi.string().min(1).required(),
-  price: Joi.number().min(0).required(),
-  image: Joi.string().uri().required(),
-  category: Joi.string().min(1).required(),
-  brand: Joi.string().min(1).required(),
-  quantity: Joi.number().min(0).required(),
-  color: Joi.array().items(Joi.string().min(1)).optional(),
-  tags: Joi.array().items(Joi.string().min(1)).optional(),
-  ratings: Joi.array().items(Joi.number().min(1).max(5)).optional(),
-  totalrating: Joi.number().min(1).max(5).optional(),
-  sold: Joi.number().min(0).optional(),
+  title: Joi.string().min(1).max(100).required(), // Product title
+  description: Joi.string().min(1).required(), // Product description
+  price: Joi.number().min(0).required(), // Product price
+  category: Joi.string().min(1).required(), // Product category
+  brand: Joi.string().min(1).required(), // Product brand
+  quantity: Joi.number().min(0).required(), // Available quantity
+  color: Joi.array().items(Joi.string().min(1)).optional(), // Optional color variants
+  tags: Joi.array().items(Joi.string().min(1)).optional(), // Optional tags
+  totalrating: Joi.number().min(1).max(5).optional(), // Overall product rating
+  sold: Joi.number().min(0).optional(), // Number of units sold
   // Add other fields as needed
 });
 

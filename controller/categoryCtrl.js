@@ -1,8 +1,21 @@
 const Category = require("../models/categoryModel");
 const asyncHandler = require("express-async-handler");
 const { createCategorySchema } = require("../utils/validationSchemas");
+const fs = require("fs");
+const path = require("path");
 
-//create a category
+// Function to create directory recursively
+const mkdirSyncRecursive = (directory) => {
+  const pathParts = directory.split("/");
+  for (let i = 1; i <= pathParts.length; i++) {
+    const segment = pathParts.slice(0, i).join("/");
+    if (!fs.existsSync(segment)) {
+      fs.mkdirSync(segment);
+    }
+  }
+};
+
+// Create a category
 const createCategory = asyncHandler(async (req, res) => {
   const { name } = req.body;
 
@@ -23,6 +36,13 @@ const createCategory = asyncHandler(async (req, res) => {
   // Create the category
   const category = await Category.create({ name });
   if (category) {
+    // Create directory for uploads/products/categoryName
+    const categoryFolderPath = path.join(
+      __dirname,
+      `../uploads/products/${category.name}`
+    );
+    mkdirSyncRecursive(categoryFolderPath);
+
     res.status(201).json({
       categoryId: category.categoryId,
       name: category.name,

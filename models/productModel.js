@@ -47,9 +47,6 @@ const Product = sequelize.define(
       type: DataTypes.INTEGER,
       defaultValue: 0,
     },
-    images: {
-      type: DataTypes.JSON,
-    },
     color: {
       type: DataTypes.JSON,
     },
@@ -66,12 +63,13 @@ const Product = sequelize.define(
     categoryId: {
       type: DataTypes.UUID,
       references: {
-        model: Category, // Correct reference to the Category model
+        model: "Categories", // Ensure this matches the table name in the Category model
         key: "categoryId",
       },
     },
   },
   {
+    tableName: "Products", // Ensure table name is correctly referenced
     timestamps: true,
   }
 );

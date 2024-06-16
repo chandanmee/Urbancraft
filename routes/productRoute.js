@@ -3,6 +3,7 @@
 const express = require("express");
 const router = express.Router();
 const connection = require("../config/dbConnect");
+const upload = require("../middlewares/upload");
 const {
   createProduct,
   getaProduct,
@@ -20,7 +21,7 @@ const { authMiddleware, isAdmin } = require("../middlewares/authMiddleware");
 router.get("/:id", getaProduct);
 router.get("/", getAllProducts);
 
-router.post("/create", authMiddleware, isAdmin, createProduct);
+router.post("/create", upload, createProduct);
 router.post("/wishlist", authMiddleware, addToWishlist);
 router.post("/cart", authMiddleware, addToCart);
 router.delete("/wishlist", authMiddleware, removeFromWishlist);

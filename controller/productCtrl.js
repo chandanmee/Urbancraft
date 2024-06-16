@@ -3,7 +3,19 @@
 // const User = require("../models/userModel");
 const { sequelize } = require("../config/dbConnect");
 const asyncHandler = require("express-async-handler");
-const { User, Product, Wishlist, Category, Cart } = require("../models");
+const {
+  User,
+  Product,
+  Wishlist,
+  Category,
+  Cart,
+  ProductImage,
+} = require("../models");
+const path = require("path");
+const fs = require("fs");
+const sharp = require("sharp");
+const Joi = require("joi");
+const { moveFile, mkdirSyncRecursive } = require("../utils/fileUtils");
 const slugify = require("slugify");
 const {
   createProductSchema,
@@ -11,69 +23,94 @@ const {
 } = require("../utils/validationSchemas");
 
 //create a product
-const createProduct = asyncHandler(async (req, res) => {
-  const { title, description, price, category, brand, quantity, color, tags } =
-    req.body;
+const createProduct = async (req, res) => {
+  console.log("Received form data:", req.body);
+  console.log("Received files:", req.files);
 
-  // Validate the request body
-  const { error } = createProductSchema.validate(req.body);
+  // Validate request body
+  const { error, value } = createProductSchema.validate(req.body);
   if (error) {
-    res.status(400).json({
-      success: false,
-      message: error.details[0].message,
-    });
-    return;
+    return res.status(400).json({ error: error.details[0].message });
   }
+
+  const t = await sequelize.transaction();
 
   try {
-    // Check if the category exists
-    const existingCategory = await Category.findOne({
-      where: { name: category },
+    // Find category
+    const category = await Category.findOne({
+      where: { name: value.category },
     });
-    if (!existingCategory) {
-      res.status(400).json({
-        success: false,
-        message: "Category does not exist",
-      });
-      return;
+    console.log("Category found:", category);
+
+    if (!category) {
+      return res.status(400).json({ error: "Category not found" });
     }
 
-    // Create the product
-    const product = await Product.create({
-      title,
-      slug: slugify(title, { lower: true }),
-      description,
-      price,
-      category,
-      brand,
-      quantity,
-      color,
-      tags,
-      categoryId: existingCategory.categoryId, // Assign categoryId from existing category
-    });
+    // Generate slug from title
+    const slug = slugify(value.title, { lower: true });
 
-    res.status(201).json({
-      success: true,
-      data: {
-        productId: product.id,
-        title: product.title,
-        slug: product.slug,
-        description: product.description,
-        price: product.price,
-        category: product.category,
-        brand: product.brand,
-        quantity: product.quantity,
-        color: product.color,
-        tags: product.tags,
-      },
-    });
-  } catch (error) {
-    res.status(400).json({
-      success: false,
-      message: error.message,
-    });
+    // Create product
+    const product = await Product.create(
+      { ...value, categoryId: category.categoryId, slug },
+      { transaction: t }
+    );
+
+    // Create product directory
+    const productDir = path.join(
+      __dirname,
+      "..",
+      "uploads",
+      "products",
+      value.category,
+      product.id.toString()
+    );
+    await fs.promises.mkdir(productDir, { recursive: true });
+
+    const filesArray = Object.values(req.files).flat();
+    const images = filesArray.map((file) => ({
+      path: path.join(productDir, file.filename),
+      tempPath: file.path,
+    }));
+
+    // Process and move images
+    for (const image of images) {
+      // Resize image using sharp
+      await sharp(image.tempPath)
+        .resize(800, 800, { fit: sharp.fit.cover })
+        .toFormat("jpeg")
+        .jpeg({ quality: 90 })
+        .toFile(image.path);
+
+      // Remove temporary file
+      await fs.promises.unlink(image.tempPath);
+    }
+
+    // Create product images in database
+    const productImages = images.map((image) => ({
+      productId: product.id,
+      imagePath: image.path,
+    }));
+    await ProductImage.bulkCreate(productImages, { transaction: t });
+
+    await t.commit();
+
+    const productWithImages = {
+      ...product.toJSON(),
+      images: productImages.map((img) => img.imagePath),
+    };
+
+    res.status(201).json(productWithImages);
+  } catch (err) {
+    await t.rollback();
+    console.error(err); // Log the full error for debugging
+    if (err.name === "SequelizeValidationError") {
+      return res
+        .status(400)
+        .json({ error: err.errors.map((e) => e.message).join(", ") });
+    }
+    res.status(500).json({ error: err.message });
   }
-});
+};
 
 //get a product
 const getaProduct = asyncHandler(async (req, res) => {
